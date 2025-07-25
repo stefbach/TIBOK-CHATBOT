@@ -94,30 +94,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Configuration de l'API Anthropic
-    const apiKey = process.env.ANTHROPIC_API_KEY
+    // Configuration de l'API OpenAI
+    const apiKey = process.env.OPENAI_API_KEY
     if (!apiKey) {
-      console.error('ANTHROPIC_API_KEY non configurée')
+      console.error('OPENAI_API_KEY non configurée')
       return NextResponse.json(
         { error: 'Configuration API manquante' },
         { status: 500 }
       )
     }
 
-    // Appel à l'API Anthropic
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Appel à l'API OpenAI
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-3-sonnet-20240229',
+        model: 'gpt-4o',
         max_tokens: 500,
         temperature: 0.7,
-        system: getSystemPrompt(language),
         messages: [
+          {
+            role: 'system',
+            content: getSystemPrompt(language),
+          },
           {
             role: 'user',
             content: message,
@@ -127,12 +129,12 @@ export async function POST(request: NextRequest) {
     })
 
     if (!response.ok) {
-      console.error('Erreur API Anthropic:', response.status, response.statusText)
+      console.error('Erreur API OpenAI:', response.status, response.statusText)
       throw new Error(`API Error: ${response.status}`)
     }
 
     const data = await response.json()
-    const assistantResponse = data.content[0].text
+    const assistantResponse = data.choices[0].message.content
 
     return NextResponse.json({ response: assistantResponse })
 
