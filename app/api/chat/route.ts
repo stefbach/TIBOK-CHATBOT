@@ -94,52 +94,150 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Configuration de l'API OpenAI
+    // 🔍 DIAGNOSTIC COMPLET
+    console.log('🚀 === DIAGNOSTIC COMPLET API TIBOK ===')
+    console.log('📥 Message reçu:', message.substring(0, 100))
+    console.log('🌍 Langue:', language)
+    
+    // Vérification de la variable d'environnement
     const apiKey = process.env.OPENAI_API_KEY
+    console.log('🔑 Variable d\'environnement:')
+    console.log('  - OPENAI_API_KEY définie:', !!apiKey)
+    console.log('  - Longueur de la clé:', apiKey?.length || 0)
+    console.log('  - Format clé:', apiKey ? `${apiKey.substring(0, 15)}...` : 'AUCUNE')
+    console.log('  - Type clé:', apiKey?.startsWith('sk-svcacct-') ? 'Service Account' : 
+                                apiKey?.startsWith('sk-proj-') ? 'Project' :
+                                apiKey?.startsWith('sk-') ? 'Standard' : 'INVALIDE')
+
     if (!apiKey) {
-      console.error('OPENAI_API_KEY non configurée')
+      console.error('❌ OPENAI_API_KEY non configurée')
       return NextResponse.json(
         { error: 'Configuration API manquante' },
         { status: 500 }
       )
     }
 
-    // Appel à l'API OpenAI
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o', // Modèle moins cher
-        max_tokens: 700,
-        temperature: 0.7,
-        messages: [
-          {
-            role: 'system',
-            content: getSystemPrompt(language),
-          },
-          {
-            role: 'user',
-            content: message,
-          },
-        ],
-      }),
-    })
-
-    if (!response.ok) {
-      console.error('Erreur API OpenAI:', response.status, response.statusText)
-      throw new Error(`API Error: ${response.status}`)
+    // Vérification du format de la clé API
+    if (!apiKey.startsWith('sk-')) {
+      console.error('❌ Format de clé API OpenAI invalide')
+      return NextResponse.json(
+        { error: 'Format de clé API invalide' },
+        { status: 500 }
+      )
     }
 
-    const data = await response.json()
-    const assistantResponse = data.choices[0].message.content
+    // 🧪 TEST AVEC DIFFÉRENTS MODÈLES
+    const modelsToTry = [
+      'gpt-3.5-turbo',      // Le plus stable et accessible
+      'gpt-4o-mini',        // Version mini plus accessible  
+      'gpt-4-turbo',        // Si accessible
+      'gpt-4o'              // En dernier recours
+    ]
 
-    return NextResponse.json({ response: assistantResponse })
+    for (const modelName of modelsToTry) {
+      try {
+        console.log(`🧪 Test du modèle: ${modelName}`)
+        
+        // Préparer la requête
+        const requestBody = {
+          model: modelName,
+          max_tokens: 500,  // Réduit pour éviter les limites
+          temperature: 0.7,
+          messages: [
+            {
+              role: 'system',
+              content: getSystemPrompt(language),
+            },
+            {
+              role: 'user',
+              content: message,
+            },
+          ],
+        }
+        
+        console.log('📦 Body de la requête:', JSON.stringify(requestBody, null, 2).substring(0, 500))
+
+        // Appel à l'API OpenAI
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
+        })
+
+        console.log(`📡 Réponse API pour ${modelName}:`)
+        console.log('  - Status:', response.status)
+        console.log('  - Status Text:', response.statusText)
+        console.log('  - Headers:', Object.fromEntries(response.headers.entries()))
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('📊 Données reçues:', {
+            choices: data.choices?.length || 0,
+            usage: data.usage || 'non disponible'
+          })
+          
+          if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            console.error('❌ Structure de réponse invalide:', data)
+            continue
+          }
+
+          const assistantResponse = data.choices[0].message.content
+          console.log('✅ SUCCÈS avec', modelName)
+          console.log('📝 Réponse:', assistantResponse.substring(0, 100) + '...')
+
+          return NextResponse.json({ response: assistantResponse })
+          
+        } else {
+          // Récupérer les détails de l'erreur
+          const errorText = await response.text()
+          console.error(`❌ Erreur avec ${modelName}:`, {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText
+          })
+          
+          // Si c'est un 401, on peut arrêter car ça ne changera pas avec d'autres modèles
+          if (response.status === 401) {
+            console.error('🚫 Erreur 401 - Problème d\'authentification détecté')
+            console.error('📋 Vérifications à faire:')
+            console.error('  1. Clé API correcte ?')
+            console.error('  2. Clé non expirée ?')
+            console.error('  3. Permissions suffisantes ?')
+            console.error('  4. Facturation à jour ?')
+            
+            return NextResponse.json({
+              error: 'Erreur d\'authentification OpenAI',
+              details: {
+                status: response.status,
+                message: errorText,
+                suggestions: [
+                  'Vérifiez votre clé API sur platform.openai.com',
+                  'Vérifiez votre facturation',
+                  'Régénérez une nouvelle clé API'
+                ]
+              }
+            }, { status: 401 })
+          }
+          
+          // Pour les autres erreurs, on continue avec le modèle suivant
+          continue
+        }
+
+      } catch (modelError) {
+        console.error(`💥 Exception avec ${modelName}:`, modelError)
+        continue
+      }
+    }
+
+    // Si tous les modèles échouent
+    console.error('❌ Tous les modèles OpenAI ont échoué')
+    throw new Error('Tous les modèles OpenAI ont échoué')
 
   } catch (error) {
-    console.error('Erreur dans l\'API chat:', error)
+    console.error('💥 Erreur générale dans l\'API chat:', error)
     
     // Messages d'erreur par langue
     const errorMessages: Record<string, string> = {
@@ -151,6 +249,12 @@ export async function POST(request: NextRequest) {
     const { language } = await request.json().catch(() => ({ language: 'fr' }))
     const errorMessage = errorMessages[language] || errorMessages.fr
 
-    return NextResponse.json({ response: errorMessage })
+    return NextResponse.json({ 
+      response: errorMessage,
+      debug: process.env.NODE_ENV === 'development' ? {
+        error: error.message,
+        timestamp: new Date().toISOString()
+      } : undefined
+    })
   }
 }
