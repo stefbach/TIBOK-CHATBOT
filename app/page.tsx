@@ -4,21 +4,30 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { Send, Bot, User, Clock, MapPin, Shield, Pill, Phone, Timer, Users, Globe } from "lucide-react"
 
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: Date
+  isRedirect?: boolean
+  showWaitTime?: boolean
+}
+
+interface Language {
+  name: string
+  flag: string
+  welcome: string
+}
+
 const TeleconsultationChatbot = () => {
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
-  const [messages, setMessages] = useState<any[]>([])
+  const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [waitTime, setWaitTime] = useState<string | null>(null)
   const [isCheckingWaitTime, setIsCheckingWaitTime] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Configuration de l'API - Utilise les variables d'environnement Vercel
-  const ANTHROPIC_API_KEY =
-    process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY ||
-    "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"
-
-  const languages = {
+  const languages: Record<string, Language> = {
     mf: {
       name: "Kreol Morisien",
       flag: "🇲🇺",
@@ -44,7 +53,7 @@ const TeleconsultationChatbot = () => {
       setMessages([
         {
           role: "assistant",
-          content: languages[selectedLanguage as keyof typeof languages].welcome,
+          content: languages[selectedLanguage].welcome,
           timestamp: new Date(),
         },
       ])
@@ -228,101 +237,23 @@ const TeleconsultationChatbot = () => {
   const detectMedicalQuestion = (message: string) => {
     const medicalKeywords = [
       // Français
-      "symptôme",
-      "symptome",
-      "douleur",
-      "mal",
-      "maladie",
-      "traitement",
-      "médicament",
-      "medicament",
-      "diagnostic",
-      "fièvre",
-      "fievre",
-      "toux",
-      "migraine",
-      "allergie",
-      "infection",
-      "virus",
-      "bactérie",
-      "bacterie",
-      "prescription",
-      "ordonnance",
-      "posologie",
-      "effet secondaire",
-      "analyse",
-      "examen",
-      "radiographie",
-      "scanner",
-      "IRM",
-      "prise de sang",
-      "tension",
-      "diabète",
-      "diabete",
-      "hypertension",
-      "cholestérol",
-      "cholesterol",
-      "cardiaque",
-      "respiratoire",
-      "digestif",
-      "neurologique",
-      "dermatologique",
-      "gynécologique",
-      "gynecologique",
+      "symptôme", "symptome", "douleur", "mal", "maladie", "traitement", "médicament", "medicament",
+      "diagnostic", "fièvre", "fievre", "toux", "migraine", "allergie", "infection", "virus",
+      "bactérie", "bacterie", "prescription", "ordonnance", "posologie", "effet secondaire",
+      "analyse", "examen", "radiographie", "scanner", "IRM", "prise de sang", "tension",
+      "diabète", "diabete", "hypertension", "cholestérol", "cholesterol", "cardiaque",
+      "respiratoire", "digestif", "neurologique", "dermatologique", "gynécologique", "gynecologique",
 
       // English
-      "symptom",
-      "symptoms",
-      "pain",
-      "sick",
-      "illness",
-      "disease",
-      "treatment",
-      "medication",
-      "medicine",
-      "diagnosis",
-      "fever",
-      "cough",
-      "headache",
-      "allergy",
-      "infection",
-      "virus",
-      "bacteria",
-      "prescription",
-      "dosage",
-      "side effect",
-      "analysis",
-      "examination",
-      "x-ray",
-      "scan",
-      "blood test",
-      "pressure",
-      "diabetes",
-      "hypertension",
-      "cholesterol",
-      "cardiac",
-      "respiratory",
-      "digestive",
-      "neurological",
-      "dermatological",
-      "gynecological",
+      "symptom", "symptoms", "pain", "sick", "illness", "disease", "treatment", "medication",
+      "medicine", "diagnosis", "fever", "cough", "headache", "allergy", "infection", "virus",
+      "bacteria", "prescription", "dosage", "side effect", "analysis", "examination", "x-ray",
+      "scan", "blood test", "pressure", "diabetes", "hypertension", "cholesterol", "cardiac",
+      "respiratory", "digestive", "neurological", "dermatological", "gynecological",
 
       // Créole mauricien
-      "malad",
-      "doulèr",
-      "fièv",
-      "latous",
-      "mizer",
-      "trètman",
-      "medikaman",
-      "preskrisyon",
-      "ordonans",
-      "egzamine",
-      "dantèr",
-      "lestoma",
-      "lasante",
-      "malèr",
-      "bobo",
+      "malad", "doulèr", "fièv", "latous", "mizer", "trètman", "medikaman", "preskrisyon",
+      "ordonans", "egzamine", "dantèr", "lestoma", "lasante", "malèr", "bobo",
     ]
 
     const lowerMessage = message.toLowerCase()
@@ -332,31 +263,14 @@ const TeleconsultationChatbot = () => {
   const detectWaitTimeQuestion = (message: string) => {
     const waitTimeKeywords = [
       // Français
-      "temps d'attente",
-      "temps attente",
-      "attendre",
-      "combien de temps",
-      "délai",
-      "attente",
-      "disponible quand",
-      "libre quand",
+      "temps d'attente", "temps attente", "attendre", "combien de temps", "délai", "attente",
+      "disponible quand", "libre quand",
 
       // English
-      "wait time",
-      "waiting time",
-      "how long",
-      "wait",
-      "delay",
-      "available when",
-      "free when",
+      "wait time", "waiting time", "how long", "wait", "delay", "available when", "free when",
 
       // Créole mauricien
-      "tan atann",
-      "tan pou atann",
-      "konbien tan",
-      "atann",
-      "disponib kan",
-      "libre kan",
+      "tan atann", "tan pou atann", "konbien tan", "atann", "disponib kan", "libre kan",
     ]
 
     const lowerMessage = message.toLowerCase()
@@ -378,53 +292,35 @@ const TeleconsultationChatbot = () => {
     return randomWaitTime
   }
 
-  // Fonction pour appeler l'API Claude d'Anthropic
-  const callClaudeAPI = async (userMessage: string, language: string) => {
+  // Fonction pour appeler l'API OpenAI sécurisée
+  const callOpenAIAPI = async (userMessage: string, language: string) => {
     try {
-      const systemPrompts: Record<string, string> = {
-        fr: `Tu es un assistant pour TIBOK, un service de téléconsultation médicale 100% mauricien. INFORMATIONS IMPORTANTES SUR TIBOK :- Service 100% mauricien avec des docteurs mauriciens- Disponible 8h à minuit, 7 jours sur 7- Tarif unique : 1150 rs tout compris- Couverture : Maurice + Rodrigues- Livraison de médicaments incluse (8h-17h)- Service premier arrivé, premier servi, pas de rendez-vousTON RÔLE :- Renseigner sur le service TIBOK uniquement- Ne JAMAIS donner de conseils médicaux- Rediriger vers une consultation pour toute question médicale- Être chaleureux et professionnel- Utiliser des emojis appropriésSTYLE DE RÉPONSE :- Réponses courtes et claires- Mettre en avant les avantages mauriciens- Utiliser "🇲🇺" pour souligner l'aspect local- Encourager la consultation avec les docteurs TIBOK`,
-        en: `You are an assistant for TIBOK, a 100% Mauritian medical teleconsultation service.IMPORTANT INFORMATION ABOUT TIBOK:- 100% Mauritian service with Mauritian doctors- Available 8am to midnight, 7 days a week- Unique price: 1150 rs all inclusive- Coverage: Mauritius + Rodrigues- Medication delivery included (8am-5pm)- First come, first served service, no appointmentsYOUR ROLE:- Provide information about TIBOK service only- NEVER give medical advice- Redirect to consultation for any medical question- Be warm and professional- Use appropriate emojisRESPONSE STYLE:- Short and clear responses- Highlight Mauritian advantages- Use "🇲🇺" to emphasize local aspect- Encourage consultation with TIBOK doctors`,
-        mf: `Ou enn assistant pou TIBOK, enn service téléconsultation medical 100% morisien.INFORMASION IMPORTAN LOR TIBOK:- Service 100% morisien ek dokter morisien- Disponib 8h-minwi, 7 zour lor 7- Prix innik: 1150 rs tout compris- Kouvertur: Moris + Rodrigues  - Livraison medikaman compris (8h-17h)- Service premie arive premie servi, pa bizin randevuOU TRAVAY:- Donn informasion lor service TIBOK selman- ZAME donn konsey medical- Redirect ver consultation pou tout kestion medical- Reste saler ek profesionel- Servi emoji apropriyeSTYLE REPONS:- Repons kour ek kler- Met devan avantaz morisien- Servi "🇲🇺" pou montre aspect lokal- Ankouraz consultation ek dokter TIBOK`,
-      }
-
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
+      const response = await fetch('/api/chat', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "claude-3-sonnet-20240229",
-          max_tokens: 500,
-          temperature: 0.7,
-          system: systemPrompts[language] || systemPrompts.fr,
-          messages: [
-            {
-              role: "user",
-              content: userMessage,
-            },
-          ],
+          message: userMessage,
+          language: language,
         }),
       })
 
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`)
+        const errorText = await response.text()
+        console.error('Erreur API Response:', response.status, errorText)
+        throw new Error(`API Error: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
-      return data.content[0].text
-    } catch (error) {
-      console.error("Erreur API Claude:", error)
-
-      // Messages d'erreur selon la langue
-      const errorMessages: Record<string, string> = {
-        fr: `Désolé, je rencontre une difficulté technique. 🔧\n\n🇲🇺 **TIBOK reste disponible !**\n\n✅ Docteurs mauriciens 8h-minuit 7j/7\n💰 Tarif unique : 1150 rs\n🩺 Service 100% opérationnel\n\nVoulez-vous consulter directement un docteur ?`,
-        en: `Sorry, I'm experiencing technical difficulties. 🔧\n\n🇲🇺 **TIBOK remains available!**\n\n✅ Mauritian doctors 8am-midnight 7/7\n💰 Unique price: 1150 rs\n🩺 Service 100% operational\n\nWould you like to consult a doctor directly?`,
-        mf: `Pardon, mo ena enn problem teknik. 🔧\n\n🇲🇺 **TIBOK reste disponib!**\n\n✅ Dokter morisien 8h-minwi 7/7\n💰 Prix innik: 1150 rs\n🩺 Service 100% operasionel\n\nOu anvi consulte enn dokter direct?`,
+      if (!data.response) {
+        throw new Error('Réponse API invalide')
       }
-
-      return errorMessages[language] || errorMessages.fr
+      
+      return data.response
+    } catch (error) {
+      console.error('Erreur API OpenAI:', error)
+      throw error
     }
   }
 
@@ -455,15 +351,21 @@ const TeleconsultationChatbot = () => {
       }
     }
 
-    // Pour toutes les autres questions, utiliser l'API Claude
+    // Pour toutes les autres questions, utiliser l'API OpenAI sécurisée
     try {
-      const aiResponse = await callClaudeAPI(userMessage, selectedLanguage)
+      const aiResponse = await callOpenAIAPI(userMessage, selectedLanguage)
       return {
         content: aiResponse,
       }
     } catch (error) {
+      console.error('Erreur OpenAI API:', error)
+      const errorMessages: Record<string, string> = {
+        fr: "Désolé, une erreur est survenue. Veuillez réessayer ou consulter directement un docteur TIBOK.",
+        en: "Sorry, an error occurred. Please try again or consult a TIBOK doctor directly.",
+        mf: "Pardon, ena enn problem. Essayer encore ou consulte enn dokter TIBOK direct.",
+      }
       return {
-        content: "Désolé, une erreur est survenue. Veuillez réessayer ou consulter directement un docteur TIBOK.",
+        content: errorMessages[selectedLanguage] || errorMessages.fr,
       }
     }
   }
@@ -472,7 +374,7 @@ const TeleconsultationChatbot = () => {
     if (!inputMessage.trim()) return
 
     const userMessage = {
-      role: "user",
+      role: "user" as const,
       content: inputMessage,
       timestamp: new Date(),
     }
@@ -484,7 +386,7 @@ const TeleconsultationChatbot = () => {
     try {
       const response = await generateResponse(inputMessage)
 
-      const assistantMessage = {
+      const assistantMessage: Message = {
         role: "assistant",
         content: response.content,
         timestamp: new Date(),
@@ -494,9 +396,9 @@ const TeleconsultationChatbot = () => {
 
       setMessages((prev) => [...prev, assistantMessage])
     } catch (error) {
-      const errorMessage = {
+      const errorMessage: Message = {
         role: "assistant",
-        content: "Désolé, une erreur est survenue. Veuillez réessayer.",
+        content: "Désolé, une erreur est survenue. Veuillez réessayer ou consulter directement un docteur TIBOK.",
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])
@@ -540,12 +442,12 @@ const TeleconsultationChatbot = () => {
               className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-full font-medium transition-colors flex items-center space-x-2"
             >
               <Globe className="w-4 h-4" />
-              <span>{languages[selectedLanguage as keyof typeof languages].flag}</span>
+              <span>{languages[selectedLanguage].flag}</span>
             </button>
             <button
               onClick={() =>
                 checkWaitTime().then((time) => {
-                  const waitMessage = {
+                  const waitMessage: Message = {
                     role: "assistant",
                     content: `⏱️ **${t.currentWaitTime} ${time}**\n\n✅ ${t.availableNow} !\n🚀 ${t.tip}`,
                     timestamp: new Date(),
