@@ -287,7 +287,73 @@ export async function POST(request: NextRequest) {
     console.log('📥 Message:', message.substring(0, 50))
     console.log('🌍 Langue:', language)
 
-    // 🤖 UTILISER LE MODE FALLBACK INTELLIGENT AVEC FAQ (RECOMMANDÉ)
+    // 🔧 TENTATIVE OPENAI D'ABORD
+    const apiKey = process.env.OPENAI_API_KEY
+    
+    console.log('🔍 DEBUG - API Key exists:', !!apiKey)
+    console.log('🔍 DEBUG - API Key format:', apiKey ? apiKey.substring(0, 15) + '...' : 'NONE')
+    
+    if (apiKey && apiKey.startsWith('sk-')) {
+      console.log('🧪 Tentative OpenAI avec prompts FAQ...')
+      
+      try {
+        const requestBody = {
+          model: 'gpt-3.5-turbo', // Essayez aussi 'gpt-4o-mini' ou 'gpt-4o'
+          max_tokens: 800,
+          temperature: 0.7,
+          messages: [
+            {
+              role: 'system',
+              content: getSystemPrompt(language),
+            },
+            {
+              role: 'user',
+              content: message,
+            },
+          ],
+        }
+        
+        console.log('📤 Requête OpenAI:', JSON.stringify(requestBody, null, 2))
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
+        })
+
+        console.log('📥 Réponse OpenAI status:', response.status)
+        console.log('📥 Réponse OpenAI headers:', Object.fromEntries(response.headers.entries()))
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log('📥 Réponse OpenAI data:', JSON.stringify(data, null, 2))
+          
+          if (data.choices?.[0]?.message?.content) {
+            console.log('✅ OpenAI réussi avec FAQ')
+            return NextResponse.json({ 
+              response: data.choices[0].message.content,
+              mode: 'openai_with_faq',
+              timestamp: new Date().toISOString(),
+              version: '2.0_openai_active'
+            })
+          } else {
+            console.log('⚠️ OpenAI réponse vide, fallback vers mode intelligent')
+          }
+        } else {
+          const errorText = await response.text()
+          console.log('❌ OpenAI erreur HTTP:', response.status, errorText)
+        }
+      } catch (error) {
+        console.log('❌ OpenAI erreur réseau:', error)
+      }
+    } else {
+      console.log('⚠️ Clé OpenAI manquante ou invalide')
+    }
+    
+    // 🤖 FALLBACK VERS MODE INTELLIGENT SI OPENAI ÉCHOUE
     console.log('✨ Utilisation du mode intelligent TIBOK avec FAQ détaillées')
     const intelligentResponse = getTibokResponse(message, language)
     
@@ -297,62 +363,6 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
       version: '2.0_with_integrated_faq'
     })
-
-    // 🔧 CODE OPENAI (COMMENTÉ - DÉCOMMENTEZ QUAND LA CLÉ SERA FIXÉE)
-    /*
-    const apiKey = process.env.OPENAI_API_KEY
-    
-    if (apiKey && apiKey.startsWith('sk-')) {
-      console.log('🧪 Tentative OpenAI avec prompts FAQ...')
-      
-      try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: 'gpt-3.5-turbo',
-            max_tokens: 800,
-            temperature: 0.7,
-            messages: [
-              {
-                role: 'system',
-                content: getSystemPrompt(language),
-              },
-              {
-                role: 'user',
-                content: message,
-              },
-            ],
-          }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.choices?.[0]?.message?.content) {
-            console.log('✅ OpenAI réussi avec FAQ')
-            return NextResponse.json({ 
-              response: data.choices[0].message.content,
-              mode: 'openai_with_faq',
-              timestamp: new Date().toISOString()
-            })
-          }
-        }
-      } catch (error) {
-        console.log('⚠️ OpenAI échoué, utilisation du mode intelligent avec FAQ')
-      }
-    }
-    
-    // Fallback en cas d'échec OpenAI
-    const intelligentResponse = getTibokResponse(message, language)
-    return NextResponse.json({ 
-      response: intelligentResponse,
-      mode: 'intelligent_fallback_with_faq',
-      timestamp: new Date().toISOString()
-    })
-    */
 
   } catch (error) {
     console.error('💥 Erreur générale:', error)
